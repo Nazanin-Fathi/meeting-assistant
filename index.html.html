@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Meeting AI Assistant</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #0f0f13;
+    color: #f0f0ee;
+    min-height: 100vh;
+    padding: 16px;
+  }
+
+  .app { max-width: 520px; margin: 0 auto; }
+
+  /* HEADER */
+  .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+  .logo { font-size: 16px; font-weight: 700; color: #a89cf7; letter-spacing: -0.3px; }
+  .status-dot { width: 10px; height: 10px; border-radius: 50%; background: #444; display: inline-block; margin-right: 6px; }
+  .status-dot.listening { background: #4ade80; animation: blink 1.2s infinite; }
+  .status-dot.thinking { background: #facc15; animation: blink 0.5s infinite; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+  .status-text { font-size: 13px; color: #888; display: flex; align-items: center; }
+
+  /* START SCREEN */
+  .start-screen { text-align: center; padding: 40px 20px; }
+  .start-screen h2 { font-size: 22px; font-weight: 600; margin-bottom: 10px; color: #f0f0ee; }
+  .start-screen p { font-size: 14px; color: #888; margin-bottom: 32px; line-height: 1.7; }
+  .btn-start { padding: 16px 40px; font-size: 16px; font-weight: 700; border: none; border-radius: 50px; background: linear-gradient(135deg, #7c6ee0, #a89cf7); color: white; cursor: pointer; transition: transform 0.15s, opacity 0.15s; letter-spacing: 0.2px; }
+  .btn-start:hover { transform: scale(1.03); opacity: 0.95; }
+
+  .how-it-works { background: #1a1a22; border-radius: 12px; padding: 16px 20px; margin-bottom: 28px; text-align: left; }
+  .how-it-works h3 { font-size: 13px; color: #a89cf7; font-weight: 600; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.06em; }
+  .step { display: flex; gap: 12px; margin-bottom: 10px; align-items: flex-start; font-size: 14px; color: #ccc; line-height: 1.5; }
+  .step:last-child { margin-bottom: 0; }
+  .step-num { min-width: 22px; height: 22px; border-radius: 50%; background: #2d2d3a; color: #a89cf7; font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; margin-top: 1px; }
+
+  /* LIVE SCREEN */
+  .live-screen { display: none; }
+
+  /* TRANSCRIPT BOX */
+  .transcript-box { background: #1a1a22; border: 1px solid #2a2a35; border-radius: 10px; padding: 12px 14px; margin-bottom: 12px; min-height: 52px; font-size: 13px; color: #666; line-height: 1.6; position: relative; }
+  .transcript-box .label { font-size: 10px; font-weight: 600; color: #555; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px; }
+  .transcript-box .text { color: #aaa; font-style: italic; }
+  .transcript-box .text.active { color: #ddd; font-style: normal; }
+
+  /* RESULT CARDS */
+  .cards { display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px; }
+
+  .card { border-radius: 12px; padding: 16px 18px; position: relative; overflow: hidden; }
+  .card-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 8px; opacity: 0.7; }
+  .card-content { font-size: 15px; line-height: 1.6; font-weight: 500; }
+  .card-content.empty { font-size: 13px; opacity: 0.4; font-weight: 400; font-style: italic; }
+
+  .card-summary { background: #1e1e2e; border: 1px solid #3a3a55; }
+  .card-summary .card-label { color: #a89cf7; }
+  .card-summary .card-content { color: #e8e8ff; }
+
+  .card-keywords { background: #1a2318; border: 1px solid #2d4028; }
+  .card-keywords .card-label { color: #4ade80; }
+  .card-keywords .card-content { color: #d0f0c8; }
+
+  .keyword-item { margin-bottom: 8px; }
+  .keyword-item:last-child { margin-bottom: 0; }
+  .kw-word { font-size: 14px; font-weight: 700; color: #4ade80; }
+  .kw-def { font-size: 13px; color: #9dbb97; margin-top: 1px; font-weight: 400; }
+
+  .card-answer { background: #1e1810; border: 1px solid #3d3218; }
+  .card-answer .card-label { color: #facc15; }
+  .card-answer .card-content { color: #fef3c0; }
+
+  .answer-item { margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid #2d2510; font-size: 14px; color: #fef3c0; line-height: 1.5; }
+  .answer-item:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+  .answer-tag { font-size: 10px; font-weight: 700; color: #a38a20; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 3px; }
+
+  /* CONTROLS */
+  .controls { display: flex; gap: 8px; margin-bottom: 12px; }
+  .btn-stop { flex: 1; padding: 12px; font-size: 14px; font-weight: 600; border: 1px solid #3d2020; border-radius: 10px; background: #2a1515; color: #f87171; cursor: pointer; }
+  .btn-stop:hover { background: #3d1515; }
+  .btn-pause { padding: 12px 18px; font-size: 14px; font-weight: 600; border: 1px solid #2a2a35; border-radius: 10px; background: #1a1a22; color: #aaa; cursor: pointer; }
+  .btn-pause:hover { background: #252530; }
+  .btn-analyze { flex: 1; padding: 12px; font-size: 14px; font-weight: 700; border: none; border-radius: 10px; background: #7c6ee0; color: white; cursor: pointer; }
+  .btn-analyze:hover { background: #6a5dc8; }
+  .btn-analyze:disabled { background: #3a3550; color: #666; cursor: not-allowed; }
+
+  /* TIMER */
+  .timer-bar { background: #1a1a22; border-radius: 8px; padding: 10px 14px; margin-bottom: 12px; display: flex; align-items: center; gap: 10px; }
+  .timer-label { font-size: 12px; color: #555; }
+  .timer-track { flex: 1; height: 4px; background: #2a2a35; border-radius: 2px; overflow: hidden; }
+  .timer-fill { height: 100%; background: #7c6ee0; border-radius: 2px; transition: width 0.5s linear; }
+  .timer-num { font-size: 12px; color: #666; min-width: 28px; text-align: right; }
+
+  /* HISTORY */
+  .history-section { margin-top: 8px; }
+  .history-label { font-size: 11px; color: #444; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px; font-weight: 600; }
+  .history-item { background: #141418; border: 1px solid #222228; border-radius: 8px; padding: 10px 12px; margin-bottom: 6px; font-size: 12px; color: #666; line-height: 1.5; cursor: pointer; transition: border-color 0.15s; }
+  .history-item:hover { border-color: #3a3a55; color: #999; }
+  .history-item strong { color: #888; display: block; margin-bottom: 2px; }
+
+  /* LOADING */
+  .loading-dots { display: flex; gap: 5px; align-items: center; padding: 6px 0; }
+  .loading-dots span { width: 7px; height: 7px; border-radius: 50%; background: #a89cf7; animation: ldot 1.2s infinite; }
+  .loading-dots span:nth-child(2) { animation-delay: 0.2s; }
+  .loading-dots span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes ldot { 0%,80%,100%{opacity:0.2;transform:scale(0.8)} 40%{opacity:1;transform:scale(1)} }
+
+  .mic-permission-note { font-size: 12px; color: #555; text-align: center; margin-top: 12px; line-height: 1.6; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="header">
+    <div class="logo">🤖 Meeting Assistant</div>
+    <div class="status-text">
+      <span class="status-dot" id="status-dot"></span>
+      <span id="status-text">Ready</span>
+    </div>
+  </div>
+
+  <!-- START SCREEN -->
+  <div class="start-screen" id="start-screen">
+    <h2>Your AI meeting helper</h2>
+    <p>Listens to the conversation in real time.<br>Shows you the main point, key words,<br>and short answers you can say — instantly.</p>
+
+    <div class="how-it-works">
+      <h3>How it works</h3>
+      <div class="step"><div class="step-num">1</div>Open your Zoom call on the same computer</div>
+      <div class="step"><div class="step-num">2</div>Press Start — this tool listens through your microphone</div>
+      <div class="step"><div class="step-num">3</div>Every 5 seconds it automatically analyses what was said</div>
+      <div class="step"><div class="step-num">4</div>You see: main point · key words · short answers</div>
+      <div class="step"><div class="step-num">5</div>Keep this window in the corner of your screen</div>
+    </div>
+
+    <button class="btn-start" onclick="startListening()">Start listening 🎤</button>
+    <div class="mic-permission-note">When your browser asks for microphone permission,<br>click <strong>Allow</strong>. Your audio is never stored or sent anywhere.</div>
+  </div>
+
+  <!-- LIVE SCREEN -->
+  <div class="live-screen" id="live-screen">
+
+    <div class="timer-bar">
+      <div class="timer-label">Next analysis in</div>
+      <div class="timer-track"><div class="timer-fill" id="timer-fill" style="width:100%"></div></div>
+      <div class="timer-num" id="timer-num">5s</div>
+    </div>
+
+    <div class="transcript-box">
+      <div class="label">Hearing now</div>
+      <div class="text" id="live-transcript">Waiting for speech...</div>
+    </div>
+
+    <div class="controls">
+      <button class="btn-pause" id="btn-pause" onclick="togglePause()">⏸ Pause</button>
+      <button class="btn-analyze" id="btn-analyze" onclick="analyzeNow()" disabled>Analyse now ↑</button>
+      <button class="btn-stop" onclick="stopListening()">■ Stop</button>
+    </div>
+
+    <div class="cards" id="cards">
+      <div class="card card-summary">
+        <div class="card-label">📌 Main point</div>
+        <div class="card-content empty" id="card-summary-text">Listening... analysis will appear here</div>
+      </div>
+      <div class="card card-keywords">
+        <div class="card-label">🔑 Key words</div>
+        <div class="card-content empty" id="card-keywords-text">Key words will appear here</div>
+      </div>
+      <div class="card card-answer">
+        <div class="card-label">💬 You can say</div>
+        <div class="card-content empty" id="card-answer-text">Suggested answers will appear here</div>
+      </div>
+    </div>
+
+    <div class="history-section" id="history-section" style="display:none">
+      <div class="history-label">Earlier in the meeting</div>
+      <div id="history-list"></div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+const API_URL = "https://api.anthropic.com/v1/messages";
+const INTERVAL_SEC = 5;
+
+let recognition = null;
+let isListening = false;
+let isPaused = false;
+let buffer = "";
+let timerInterval = null;
+let timerCount = INTERVAL_SEC;
+let history = [];
+let analysisInProgress = false;
+
+// ── Start ─────────────────────────────────────────────────────────────────────
+function startListening() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) {
+    alert("Speech recognition not supported.\nPlease open this file in Chrome or Edge browser.");
+    return;
+  }
+
+  document.getElementById('start-screen').style.display = 'none';
+  document.getElementById('live-screen').style.display = 'block';
+
+  startRecognition();
+  startTimer();
+}
+
+function startRecognition() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  recognition = new SR();
+  recognition.lang = 'en-US';
+  recognition.continuous = true;
+  recognition.interimResults = true;
+  recognition.maxAlternatives = 1;
+
+  recognition.onstart = () => {
+    isListening = true;
+    setStatus('listening', 'Listening...');
+  };
+
+  recognition.onresult = (e) => {
+    if (isPaused) return;
+    let interim = '';
+    let final = '';
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      const t = e.results[i][0].transcript;
+      if (e.results[i].isFinal) final += t + ' ';
+      else interim += t;
+    }
+    if (final) {
+      buffer += final;
+      document.getElementById('btn-analyze').disabled = false;
+    }
+    const display = (buffer.slice(-120) + interim).trim();
+    const el = document.getElementById('live-transcript');
+    el.textContent = display || 'Waiting for speech...';
+    el.className = 'text' + (display ? ' active' : '');
+  };
+
+  recognition.onerror = (e) => {
+    if (e.error === 'no-speech') { restartRecognition(); return; }
+    if (e.error === 'not-allowed') {
+      setStatus('', 'Microphone blocked — please allow access');
+      stopListening();
+      return;
+    }
+    restartRecognition();
+  };
+
+  recognition.onend = () => {
+    if (isListening && !isPaused) restartRecognition();
+  };
+
+  recognition.start();
+}
+
+function restartRecognition() {
+  setTimeout(() => { if (isListening && !isPaused) startRecognition(); }, 300);
+}
+
+function stopListening() {
+  isListening = false;
+  if (recognition) { recognition.stop(); recognition = null; }
+  clearInterval(timerInterval);
+  setStatus('', 'Stopped');
+  document.getElementById('start-screen').style.display = 'block';
+  document.getElementById('live-screen').style.display = 'none';
+  buffer = "";
+}
+
+function togglePause() {
+  isPaused = !isPaused;
+  const btn = document.getElementById('btn-pause');
+  if (isPaused) {
+    if (recognition) recognition.stop();
+    setStatus('', 'Paused');
+    btn.textContent = '▶ Resume';
+    clearInterval(timerInterval);
+  } else {
+    startRecognition();
+    startTimer();
+    btn.textContent = '⏸ Pause';
+  }
+}
+
+// ── Timer ─────────────────────────────────────────────────────────────────────
+function startTimer() {
+  timerCount = INTERVAL_SEC;
+  clearInterval(timerInterval);
+  timerInterval = setInterval(() => {
+    timerCount--;
+    const pct = (timerCount / INTERVAL_SEC) * 100;
+    document.getElementById('timer-fill').style.width = pct + '%';
+    document.getElementById('timer-num').textContent = timerCount + 's';
+    if (timerCount <= 0) {
+      timerCount = INTERVAL_SEC;
+    if (buffer.trim().length > 8) analyzeNow();
+    }
+  }, 1000);
+}
+
+// ── Analyse ───────────────────────────────────────────────────────────────────
+async function analyzeNow() {
+  const text = buffer.trim();
+  if (!text || text.length < 5) return;
+  if (analysisInProgress) return;
+
+  analysisInProgress = true;
+  document.getElementById('btn-analyze').disabled = true;
+  setStatus('thinking', 'Analysing...');
+
+  showLoading();
+
+  const prompt = `You are a real-time meeting assistant helping a non-native English speaker (Iranian, PhD immunologist, job seeker) follow a professional Zoom meeting. 
+
+The following text was just spoken in the meeting:
+"""
+${text.slice(-600)}
+"""
+
+Reply ONLY with valid JSON in exactly this format — no extra text, no markdown:
+{
+  "summary": "One simple sentence (max 15 words) explaining the main point",
+  "keywords": [
+    {"word": "word1", "definition": "very simple definition in 5-8 words"},
+    {"word": "word2", "definition": "very simple definition in 5-8 words"},
+    {"word": "word3", "definition": "very simple definition in 5-8 words"}
+  ],
+  "answers": [
+    {"tag": "If you agree", "text": "Short sentence you can say"},
+    {"tag": "If you want more info", "text": "Short sentence you can say"},
+    {"tag": "If you need time", "text": "Short sentence you can say"}
+  ]
+}
+
+Rules:
+- Summary must be simple English — no jargon
+- Keywords: only pick words that are important AND might be unfamiliar
+- Answers must be short (under 12 words), natural, professional
+- If nothing important was said, still return the JSON with summary: "Still listening — nothing important yet"`;
+
+  try {
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 500,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+
+    const data = await res.json();
+    const raw = data.content?.[0]?.text || '';
+    const clean = raw.replace(/```json|```/g, '').trim();
+    const parsed = JSON.parse(clean);
+
+    showResult(parsed, text.slice(-200));
+    history.unshift({ summary: parsed.summary, snippet: text.slice(-80) });
+    if (history.length > 5) history.pop();
+    renderHistory();
+
+    buffer = "";
+    document.getElementById('live-transcript').textContent = 'Waiting for speech...';
+    document.getElementById('live-transcript').className = 'text';
+    timerCount = INTERVAL_SEC;
+
+  } catch (err) {
+    showError();
+  }
+
+  analysisInProgress = false;
+  setStatus('listening', 'Listening...');
+}
+
+// ── UI helpers ────────────────────────────────────────────────────────────────
+function showLoading() {
+  document.getElementById('card-summary-text').innerHTML = '<div class="loading-dots"><span></span><span></span><span></span></div>';
+  document.getElementById('card-keywords-text').innerHTML = '<div class="loading-dots"><span></span><span></span><span></span></div>';
+  document.getElementById('card-answer-text').innerHTML = '<div class="loading-dots"><span></span><span></span><span></span></div>';
+
+  document.getElementById('card-summary-text').className = 'card-content';
+  document.getElementById('card-keywords-text').className = 'card-content';
+  document.getElementById('card-answer-text').className = 'card-content';
+}
+
+function showResult(data, snippet) {
+  // Summary
+  const sumEl = document.getElementById('card-summary-text');
+  sumEl.className = 'card-content';
+  sumEl.textContent = data.summary || '—';
+
+  // Keywords
+  const kwEl = document.getElementById('card-keywords-text');
+  kwEl.className = 'card-content';
+  if (data.keywords && data.keywords.length > 0) {
+    kwEl.innerHTML = data.keywords.map(k =>
+      `<div class="keyword-item">
+        <div class="kw-word">${k.word}</div>
+        <div class="kw-def">${k.definition}</div>
+      </div>`
+    ).join('');
+  } else {
+    kwEl.innerHTML = '<span style="opacity:0.4;font-style:italic;font-size:13px">No difficult words detected</span>';
+  }
+
+  // Answers
+  const ansEl = document.getElementById('card-answer-text');
+  ansEl.className = 'card-content';
+  if (data.answers && data.answers.length > 0) {
+    ansEl.innerHTML = data.answers.map(a =>
+      `<div class="answer-item">
+        <div class="answer-tag">${a.tag}</div>
+        "${a.text}"
+      </div>`
+    ).join('');
+  } else {
+    ansEl.innerHTML = '<span style="opacity:0.4;font-style:italic;font-size:13px">—</span>';
+  }
+}
+
+function showError() {
+  document.getElementById('card-summary-text').textContent = 'Could not analyse — will try again shortly.';
+  document.getElementById('card-summary-text').className = 'card-content empty';
+}
+
+function renderHistory() {
+  if (history.length === 0) return;
+  document.getElementById('history-section').style.display = 'block';
+  document.getElementById('history-list').innerHTML = history.map(h =>
+    `<div class="history-item"><strong>${h.summary}</strong>${h.snippet}...</div>`
+  ).join('');
+}
+
+function setStatus(type, text) {
+  const dot = document.getElementById('status-dot');
+  dot.className = 'status-dot' + (type ? ' ' + type : '');
+  document.getElementById('status-text').textContent = text;
+}
+</script>
+</body>
+</html>
